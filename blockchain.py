@@ -2,6 +2,11 @@ import hashlib
 import json
 from time import time
 
+from textwrap import dedent
+from uuid import uuid4
+from flask import Flask, jsonify, request
+
+
 
 class blockchain(object):
     def __init__(self):
@@ -32,7 +37,6 @@ class blockchain(object):
 
         self.chain.append(block)
         return block
-
 
     def new_transaction(self, sender, recipient, amount):
         """
@@ -67,3 +71,49 @@ class blockchain(object):
     def last_block(self):
         # Returns the last Block in the chain
         return self.chain[-1]
+
+    def proof_of_work(self, last_proof):
+        proof = 0
+        while self.valid_proof(last_proof, proof) is False:
+            proof += 1
+        return proof
+
+    @staticmethod
+    def valid_proof(last_proof, proof):
+        guess = f'{last_proof}{proof}'.encode() # f is used to format string
+        guess_hash = hashlib.sha256(guess).hexdigest()
+        return guess_hash[:4] == "0000"
+
+# Instantiate the node
+app = Flask(__name__)
+
+#generate a globally unique address for this node
+node_identifier = str(uuid4()).replace('-', '')
+
+# Instrantiate the Blockchain
+blockchain = Blockchain()
+
+@app.route('/mine', method=['GET'])
+def mine():
+    return "we will mine a block"
+
+@app.route('/transactions/new', methods=['POST'])
+def new_transaction():
+    values = request.get_json()
+
+    # Check the required fields are in the POSTed data
+    required = ['sender', 'recipient', 'amount']
+    if not all(k in values for k in required):
+        return 'Missing values', 400
+    return "We'll add a new transaction"
+
+@app.route('/chain', methods=['GET'])
+def full_chain():
+    response = {
+        'chain': blockchain.chain,
+        'length': len(blockchain.chain),
+    }
+    return jsonify(response), 200
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
